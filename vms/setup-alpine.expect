@@ -1,0 +1,214 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+set VM_NAME [lindex $argv 0];
+set root_password "123";
+
+spawn virsh console $VM_NAME
+
+expect "Connected"
+send "\n"
+
+expect "login:"
+send "root\r"
+
+expect "# "
+send "setup-alpine\r"
+
+expect "Enter system hostname"
+send "$VM_NAME\r"
+
+expect "Which one do you want to initialize?"
+send "eth0\r"
+
+expect "Ip address for eth0?"
+send "dhcp\r"
+
+expect "Do you want to do any manual network configuration?"
+send "n\r"
+
+expect "New password:"
+send "$root_password\r"
+
+expect "Retype password:"
+send "$root_password\r"
+
+expect "Which timezone are you in?"
+send "Brazil/\r"
+
+expect "What sub-timezone of"
+send "West\r"
+
+expect "HTTP/FTP proxy URL?"
+send "none\r"
+
+expect "Enter mirror number or URL:"
+send "1\r"
+
+expect "Setup a user?"
+send "no\r"
+
+expect "Which ssh server?"
+send "openssh\r"
+
+expect "Allow root ssh login?"
+send "yes\r"
+
+expect "Enter ssh key or URL for root"
+send "none\r"
+
+expect "Which disk(s) would you like to use?"
+send "none\r"
+
+expect "Enter where to store configs"
+send "none\r"
+
+expect "Enter apk cache directory"
+send "/var/cache/apk\r"
+
+expect "# " 
+send "apk update\r"
+
+expect "# "
+send "apk add git\r"
+
+expect "# "
+send "echo \"http://dl-cdn.alpinelinux.org/alpine/edge/main\" >> /etc/apk/repositories\r"
+
+expect "# "
+send "echo \"http://dl-cdn.alpinelinux.org/alpine/edge/community\" >> /etc/apk/repositories\r"
+
+expect "# "
+send "echo \"http://dl-cdn.alpinelinux.org/alpine/edge/testing\" >> /etc/apk/repositories\r"
+
+expect "# "
+send "apk update\r"
+
+expect "# "
+send "echo \"br_netfilter\" > /etc/modules-load.d/k8s.conf\r"
+
+expect "# "
+send "modprobe br_netfilter\r"
+
+expect "# "
+send "sysctl net.ipv4.ip_forward=1\r"
+
+expect "# "
+send "echo \"net.ipv4.ip_forward=1\" >> /etc/sysctl.conf\r"
+
+expect "# "
+send "echo \"net.bridge.bridge-nf-call-iptables=1\" >> /etc/sysctl.conf\r"
+
+expect "# "
+send "sysctl net.bridge.bridge-nf-call-iptables=1\r"
+
+expect "# "
+send "apk add cni-plugin-flannel\r"
+
+expect "# "
+send "apk add cni-plugins\r"
+
+expect "# "
+send "apk add flannel\r"
+
+expect "# "
+send "apk add flannel-contrib-cni\r"
+
+expect "# "
+send "apk add kubelet\r"
+
+expect "# "
+send "apk add kubeadm\r"
+
+expect "# "
+send "apk add kubectl\r"
+
+expect "# "
+send "apk add containerd\r"
+
+expect "# "
+send "apk add uuidgen\r"
+
+expect "# "
+send "apk add nfs-utils\r"
+
+expect "# "
+send "cp -av /etc/fstab /etc/fstab.bak\r"
+
+expect "# "
+send "sed -i '/swap/s/^/#/' /etc/fstab\r"
+
+expect "# "
+send "swapoff -a\r"
+
+expect "# "
+send "mount --make-rshared /\r"
+
+expect "# "
+send "echo \"#!/bin/sh\" > /etc/local.d/sharemetrics.start\r"
+
+expect "# "
+send "echo \"mount --make-rshared /\" >> /etc/local.d/sharemetrics.start\r"
+
+expect "# "
+send "chmod +x /etc/local.d/sharemetrics.start\r"
+
+expect "# "
+send "rc-update add local\r"
+
+expect "# "
+send "uuidgen > /etc/machine-id\r"
+
+expect "# "
+send "sed -i 's/pause:3.8/pause:3.9/' /etc/containerd/config.toml\r"
+
+expect "# "
+send "rc-update add containerd\r"
+
+expect "# "
+send "rc-update add kubelet\r"
+
+expect "# "
+send "rc-service containerd start\r"
+
+expect "# "
+send "rc-update add ntpd\r"
+
+expect "# "
+send "rc-service ntpd start\r"
+
+# Flannel CNI symlink
+expect "# "
+send "ln -s /usr/libexec/cni/flannel-amd64 /usr/libexec/cni/flannel\r"
+
+# Calico CNI symlinks (optional, adjust depending on your environment)
+expect "# "
+send "ln -s /opt/cni/bin/calico /usr/libexec/cni/calico\r"
+
+expect "# "
+send "ln -s /opt/cni/bin/calico-ipam /usr/libexec/cni/calico-ipam\r"
+
+# Pin Kubernetes versions
+expect "# "
+send "apk add 'kubelet=~1.30'\r"
+
+expect "# "
+send "apk add 'kubeadm=~1.30'\r"
+
+expect "# "
+send "apk add 'kubectl=~1.30'\r"
+
+expect "# "
+send "echo 'Setup finalizado com sucesso.'\r"
+
+expect "# "
+if { $VM_NAME eq "vm1" } {
+    send "kubeadm init --pod-network-cidr=10.244.0.0/16 --node-name=\$(hostname)\r"
+    expect "# "
+    send "mkdir -p ~/.kube\r"
+    expect "# "
+    send "ln -sf /etc/kubernetes/admin.conf ~/.kube/config\r"
+    expect "# "
+    send "kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml\r"
+    expect "# "
+}
