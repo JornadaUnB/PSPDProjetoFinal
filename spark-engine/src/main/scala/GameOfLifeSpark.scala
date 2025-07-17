@@ -1,78 +1,86 @@
-import org.apache.spark.sql.SparkSession
+import java.time.Instant
 
 object GameOfLifeSpark {
-  def main(args: Array[String]): Unit = {
-    if (args.length != 2) {
-      println("Uso: GameOfLifeSpark <POWMIN> <POWMAX>")
-      sys.exit(1)
+
+  val POWMIN = 5 
+  val POWMAX = 10
+
+  def ind2d(i: Int, j: Int, tam: Int): Int = i * (tam + 2) + j
+
+  def wallTime(): Double = Instant.now.toEpochMilli / 1000.0
+
+  def umaVida(tabulIn: Array[Int], tabulOut: Array[Int], tam: Int): Unit = {
+    for (i <- 1 to tam) {
+      for (j <- 1 to tam) {
+        val vizviv =
+          tabulIn(ind2d(i - 1, j - 1, tam)) +
+          tabulIn(ind2d(i - 1, j, tam)) +
+          tabulIn(ind2d(i - 1, j + 1, tam)) +
+          tabulIn(ind2d(i, j - 1, tam)) +
+          tabulIn(ind2d(i, j + 1, tam)) +
+          tabulIn(ind2d(i + 1, j - 1, tam)) +
+          tabulIn(ind2d(i + 1, j, tam)) +
+          tabulIn(ind2d(i + 1, j + 1, tam))
+
+        val idx = ind2d(i, j, tam)
+        tabulOut(idx) = tabulIn(idx) match {
+          case 1 if vizviv < 2 || vizviv > 3 => 0
+          case 0 if vizviv == 3 => 1
+          case current => current
+        }
+      }
     }
+  }
 
-    val powMin = args(0).toInt
-    val powMax = args(1).toInt
+  def initTabul(tabulIn: Array[Int], tabulOut: Array[Int], tam: Int): Unit = {
+    java.util.Arrays.fill(tabulIn, 0)
+    java.util.Arrays.fill(tabulOut, 0)
 
-    val spark = SparkSession.builder
-      .appName("Game of Life Spark")
-      .master("local[*]")
-      .getOrCreate()
+    tabulIn(ind2d(1,2,tam)) = 1
+    tabulIn(ind2d(2,3,tam)) = 1
+    tabulIn(ind2d(3,1,tam)) = 1
+    tabulIn(ind2d(3,2,tam)) = 1
+    tabulIn(ind2d(3,3,tam)) = 1
+  }
 
-    val sc = spark.sparkContext
+  def correto(tabul: Array[Int], tam: Int): Boolean = {
+    val total = tabul.sum
+    total == 5 &&
+      tabul(ind2d(tam - 2, tam - 1, tam)) == 1 &&
+      tabul(ind2d(tam - 1, tam, tam)) == 1 &&
+      tabul(ind2d(tam, tam - 2, tam)) == 1 &&
+      tabul(ind2d(tam, tam - 1, tam)) == 1 &&
+      tabul(ind2d(tam, tam, tam)) == 1
+  }
+
+  def main(args: Array[String]): Unit = {
+    val powMin = if (args.length > 0) args(0).toInt else POWMIN
+    val powMax = if (args.length > 1) args(1).toInt else POWMAX
 
     for (pow <- powMin to powMax) {
       val tam = 1 << pow
-      val board = Array.ofDim[Int](tam, tam)
+      val size = (tam + 2) * (tam + 2)
 
-      // Inicialização do "veleiro"
-      board(1)(2) = 1
-      board(2)(3) = 1
-      board(3)(1) = 1
-      board(3)(2) = 1
-      board(3)(3) = 1
+      val t0 = wallTime()
+      val tabulIn = Array.ofDim[Int](size)
+      val tabulOut = Array.ofDim[Int](size)
 
-      val start = System.nanoTime()
+      initTabul(tabulIn, tabulOut, tam)
+      val t1 = wallTime()
 
-      var current = board.map(_.clone)
       for (_ <- 0 until 2 * (tam - 3)) {
-        val rdd = sc.parallelize(current.zipWithIndex)
-
-        val updated = rdd.map { case (row, i) =>
-          row.indices.map { j =>
-            val neighbors = for {
-              di <- -1 to 1
-              dj <- -1 to 1
-              if (di != 0 || dj != 0)
-              ni = i + di
-              nj = j + dj
-              if ni >= 0 && ni < tam && nj >= 0 && nj < tam
-            } yield current(ni)(nj)
-
-            val alive = neighbors.count(_ == 1)
-            if (current(i)(j) == 1 && (alive < 2 || alive > 3)) 0
-            else if (current(i)(j) == 0 && alive == 3) 1
-            else current(i)(j)
-          }.toArray
-        }
-
-        current = updated.collect()
+        umaVida(tabulIn, tabulOut, tam)
+        umaVida(tabulOut, tabulIn, tam)
       }
 
-      val end = System.nanoTime()
-      val duration = (end - start) / 1e9
+      val t2 = wallTime()
 
-      println(s"Tamanho $tam finalizado em $duration segundos")
-
-      // Verificação simples do "veleiro" no final
-      val success = List(
-        current(tam - 3)(tam - 2),
-        current(tam - 2)(tam - 1),
-        current(tam - 1)(tam - 3),
-        current(tam - 1)(tam - 2),
-        current(tam - 1)(tam - 1)
-      ).count(_ == 1) == 5
-
-      if (success) println("**Ok, RESULTADO CORRETO**")
+      if (correto(tabulIn, tam)) println("**RESULTADO CORRETO**")
       else println("**Nok, RESULTADO ERRADO**")
-    }
 
-    spark.stop()
+      val t3 = wallTime()
+
+      println(f"tam=$tam; tempos: init=${t1 - t0}%.7f, comp=${t2 - t1}%.7f, fim=${t3 - t2}%.7f, tot=${t3 - t0}%.7f")
+    }
   }
 }
