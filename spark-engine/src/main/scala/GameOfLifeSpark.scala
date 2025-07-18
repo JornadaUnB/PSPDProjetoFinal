@@ -1,9 +1,9 @@
 import java.time.Instant
+import org.apache.kafka.clients.consumer.{KafkaConsumer, ConsumerConfig}
+import java.util.{Properties, Collections}
+import scala.jdk.CollectionConverters._
 
 object GameOfLifeSpark {
-
-  val POWMIN = 5 
-  val POWMAX = 10
 
   def ind2d(i: Int, j: Int, tam: Int): Int = i * (tam + 2) + j
 
@@ -53,34 +53,67 @@ object GameOfLifeSpark {
       tabul(ind2d(tam, tam, tam)) == 1
   }
 
+  def createKafkaConsumer(): KafkaConsumer[String, String] = {
+    val props = new Properties()
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka:9092")
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, "game-of-life-group")
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    new KafkaConsumer[String, String](props)
+  }
+
   def main(args: Array[String]): Unit = {
-    val powMin = if (args.length > 0) args(0).toInt else POWMIN
-    val powMax = if (args.length > 1) args(1).toInt else POWMAX
+    val consumer = createKafkaConsumer()
+    consumer.subscribe(Collections.singletonList("game-of-life-config"))
+    println("👂 Aguardando mensagens Kafka no tópico 'game-of-life-config'...")
 
-    for (pow <- powMin to powMax) {
-      val tam = 1 << pow
-      val size = (tam + 2) * (tam + 2)
+    while (true) {
+      val records = consumer.poll(java.time.Duration.ofSeconds(5))
+      for (record <- records.asScala) {
+        val value = record.value()
+        println(s"📝 Mensagem recebida: $value")
 
-      val t0 = wallTime()
-      val tabulIn = Array.ofDim[Int](size)
-      val tabulOut = Array.ofDim[Int](size)
+        val parts = value.split(",").map(_.trim)
 
-      initTabul(tabulIn, tabulOut, tam)
-      val t1 = wallTime()
+        if (parts.length != 2) {
+          println(s"⚠️ Ignorando mensagem malformada: '$value'")
+        } else {
+          try {
+            val powMin = parts(0).toInt
+            val powMax = parts(1).toInt
 
-      for (_ <- 0 until 2 * (tam - 3)) {
-        umaVida(tabulIn, tabulOut, tam)
-        umaVida(tabulOut, tabulIn, tam)
+            for (pow <- powMin to powMax) {
+              val tam = 1 << pow
+              val size = (tam + 2) * (tam + 2)
+
+              val t0 = wallTime()
+              val tabulIn = Array.ofDim[Int](size)
+              val tabulOut = Array.ofDim[Int](size)
+
+              initTabul(tabulIn, tabulOut, tam)
+              val t1 = wallTime()
+
+              for (_ <- 0 until 2 * (tam - 3)) {
+                umaVida(tabulIn, tabulOut, tam)
+                umaVida(tabulOut, tabulIn, tam)
+              }
+
+              val t2 = wallTime()
+
+              if (correto(tabulIn, tam)) println("✅ RESULTADO CORRETO")
+              else println("❌ Nok, RESULTADO ERRADO")
+
+              val t3 = wallTime()
+
+              println(f"[POW=$pow | tam=$tam] tempos: init=${t1 - t0}%.7f, comp=${t2 - t1}%.7f, fim=${t3 - t2}%.7f, tot=${t3 - t0}%.7f\n")
+            }
+          } catch {
+            case e: NumberFormatException =>
+              println(s"⚠️ Valores inválidos na mensagem: '$value'")
+          }
+        }
       }
-
-      val t2 = wallTime()
-
-      if (correto(tabulIn, tam)) println("**RESULTADO CORRETO**")
-      else println("**Nok, RESULTADO ERRADO**")
-
-      val t3 = wallTime()
-
-      println(f"tam=$tam; tempos: init=${t1 - t0}%.7f, comp=${t2 - t1}%.7f, fim=${t3 - t2}%.7f, tot=${t3 - t0}%.7f")
     }
   }
 }
