@@ -15,19 +15,19 @@ Implementação do Jogo da Vida de Conway utilizando:
 sudo bash install_local_deb.sh
 ```
 
-### 2. Substitua `nomeDoNode` pelo nome do seu nó master (use `sudo kubectl get nodes` para ver)
+### 2. Execute o comando para iniciar o cluster:
 **No MASTER**
 ```bash
-sudo kubectl taint nodes nomeDoNode node-role.kubernetes.io/control-plane-
+sudo bash init_cluster.sh
 ```
 
-### 3. Use o comando que apareceu no master, no terminal dos workers para faze-los se juntarem-se ao cluster.
+### 3. Use o comando que apareceu ao final do passo anterior no master, no terminal dos workers para faze-los se juntarem-se ao cluster.
 **Nos WORKERS**
 ```bash
 sudo kubeadm join 192.199.15.755:6483 --token w4vxtr.vw3gqp6yphaq2tfj --discovery-token-ca-cert-hash sha256:f299f0497f401ea85acaca185b52d2df180fb
 ```
 
-### 4. Use o comando para implementar a stack basica:
+### 4. Use o comando para inicializar os pods:
 **No MASTER**
 ```bash
 sudo kubectl apply -f stack.yaml
