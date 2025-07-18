@@ -103,18 +103,16 @@ int main(int argc, char *argv[])
         int start_row = rank * rows_per_process_base + (rank < remainder ? rank : remainder) + 1;
         int end_row = start_row + rows_per_process_base + (rank < remainder ? 1 : 0) - 1;
         
-        // O número de gerações correto é 4 * (tam - 3)
+        
         for (int i = 0; i < 4 * (tam - 3); i++)
         {
-            // CORREÇÃO DO DEADLOCK: Unificar as tags para 0
-            // Troca de bordas com o vizinho de cima (rank-1)
+            
             if (rank > 0)
             {
                 MPI_Sendrecv(&tabulIn[ind2d(start_row, 0)], tam + 2, MPI_INT, rank - 1, 0,
                              &tabulIn[ind2d(start_row - 1, 0)], tam + 2, MPI_INT, rank - 1, 0,
                              MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
-            // Troca de bordas com o vizinho de baixo (rank+1)
             if (rank < effective_size - 1)
             {
                 MPI_Sendrecv(&tabulIn[ind2d(end_row, 0)], tam + 2, MPI_INT, rank + 1, 0,
@@ -129,12 +127,10 @@ int main(int argc, char *argv[])
             tabulOut = temp;
         }
 
-        // Coleta de Resultados (Estrutura Original Mantida)
         if (rank == 0)
         {
             for (int p = 1; p < effective_size; p++)
             {
-                // Recalcula a fatia do processo 'p' para saber o que esperar
                 int p_rows_base = tam / effective_size;
                 int p_rem = tam % effective_size;
                 int p_start = p * p_rows_base + (p < p_rem ? p : p_rem) + 1;
@@ -145,7 +141,7 @@ int main(int argc, char *argv[])
                          MPI_INT, p, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
         }
-        else // Apenas os processos ativos (rank > 0 e rank < effective_size) enviam
+        else
         {
             int elements_to_send = (end_row - start_row + 1) * (tam + 2);
             MPI_Send(&tabulIn[ind2d(start_row, 0)], elements_to_send,
