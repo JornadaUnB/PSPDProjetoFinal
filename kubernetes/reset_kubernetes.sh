@@ -15,9 +15,6 @@ sudo rm -rf /var/lib/kubelet
 sudo rm -rf /etc/containerd
 sudo rm -rf ~/.kube
 
-echo "[4/6] (Opcional) Limpando configuração de rede do CNI..."
-sudo rm -rf /opt/cni/bin
-
 echo "[5/6] Reiniciando serviços..."
 sudo systemctl restart containerd
 sudo systemctl restart kubelet

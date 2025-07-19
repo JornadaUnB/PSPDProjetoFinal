@@ -1,0 +1,91 @@
+services:
+  # Serviço do Zookeeper, uma dependência do Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  # Serviço do Broker Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+
+  # Serviço do Elasticsearch (Banco de Dados para métricas)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # Desabilita segurança para facilitar o teste
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Limita o uso de memória
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Serviço do Kibana (Interface Gráfica para o Elasticsearch)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.1
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+
+  # Serviço temporário para criar o tópico no Kafka antes da app iniciar
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka-setup
+    container_name: kafka-setup
+    depends_on:
+      - kafka
+    command: >
+      sh -c "
+        echo 'Esperando o Kafka ficar disponível...' &&
+        until kafka-topics --list --bootstrap-server kafka:9092; do
+          echo 'Ainda esperando pelo Kafka...' && sleep 2;
+        done;
+        echo 'Kafka pronto. Criando o tópico...' &&
+        kafka-topics --create --if-not-exists --topic jogo-da-vida-requests --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
+        echo 'Tópico criado ou já existente. Serviço de setup concluído.'
+      "
+
+  # Serviço da sua aplicação MPI/OpenMP
+  app:
+    build: .
+    container_name: mpi_app
+    depends_on:
+      kafka-setup:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+
+# Define um volume nomeado para persistir os dados do Elasticsearch
+volumes:
+  esdata:

@@ -12,7 +12,7 @@ echo "[3/4] Instalando Flannel CNI..."
 kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
 
 echo "[4/4] Instalando pods..."
-kubectl apply -f stack.yaml
+#kubectl apply -f stack.yaml
 
 
 echo ""
