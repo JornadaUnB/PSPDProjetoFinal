@@ -10,7 +10,7 @@ KAFKA_TOPIC = "spark-topico"
 KAFKA_SERVER = "kafka:9092"
 GROUP_ID = "engine-spark-group"
 
-ELASTIC_HOST = "http://192.168.15.21:30920"
+ELASTIC_HOST = "http://elasticsearch:9200"
 
 
 
