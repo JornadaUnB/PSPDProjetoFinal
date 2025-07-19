@@ -3,7 +3,8 @@
 #include <sys/time.h>
 #include <mpi.h>
 #include <omp.h>
-
+#include <curl/curl.h>
+#include <jansson.h>
 #include <librdkafka/rdkafka.h>
 #include <string.h>
 
@@ -16,6 +17,34 @@ double wall_time(void)
     struct timezone tz;
     gettimeofday(&tv, &tz);
     return (tv.tv_sec + tv.tv_usec / 1000000.0);
+}
+
+// Função para enviar dados ao Elasticsearch
+void send_metrics_to_elasticsearch(const char *json_data) {
+    CURL *curl;
+    CURLcode res;
+
+    curl = curl_easy_init();
+    if (curl) {
+        // A URL aponta para o serviço 'elasticsearch' do docker-compose
+        // e para o índice 'jogo_da_vida_metrics'. Você pode mudar o nome do índice aqui se quiser.
+        curl_easy_setopt(curl, CURLOPT_URL, "http://elasticsearch:9200/omp-mpi-metrics/_doc");
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data);
+
+        struct curl_slist *headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        } else {
+            printf("Métricas enviadas para o Elasticsearch com sucesso.\n");
+        }
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
 }
 
 void UmaVida(int *tabulIn, int *tabulOut, int tam, int start_row, int end_row)
@@ -191,13 +220,24 @@ int main(int argc, char *argv[]) {
 
                 if (rank == 0) {
                     t2 = wall_time();
-                    if (Correto(tabulIn, tam))
-                        printf("**RESULTADO CORRETO**\n");
-                    else
-                        printf("**RESULTADO ERRADO**\n");
+                    // Lógica para criar e enviar o JSON
+                    const char* resultado_str = Correto(tabulIn, tam) ? "CORRETO" : "ERRADO";
                     t3 = wall_time();
-                    printf("tam=%d; tempos: init=%7.7f, comp=%7.7f, fim=%7.7f, tot=%7.7f\n",
-                           tam, t1 - t0, t2 - t1, t3 - t2, t3 - t0);
+                    
+                    printf("tam=%d; resultado=%s; tempos: init=%7.7f, comp=%7.7f, fim=%7.7f, tot=%7.7f\n",
+                           tam, resultado_str, t1 - t0, t2 - t1, t3 - t2, t3 - t0);
+
+                    json_t *metrics_json = json_pack("{s:i, s:i, s:s, s:f, s:f, s:f, s:f, s:s}",
+                                                     "tam", tam, "resultado", resultado_str,
+                                                     "tempo_init_s", t1 - t0, "tempo_comp_s", t2 - t1,
+                                                     "tempo_verif_s", t3 - t2, "tempo_total_s", t3 - t0,
+                                                     "engine", "MPI_OpenMP");
+
+                    char *json_dump = json_dumps(metrics_json, JSON_INDENT(2));
+                    send_metrics_to_elasticsearch(json_dump);
+                    
+                    free(json_dump);
+                    json_decref(metrics_json);
                 }
 
                 free(tabulIn);

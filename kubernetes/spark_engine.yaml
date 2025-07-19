@@ -1,0 +1,174 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spark-cluster
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master
+  namespace: spark-cluster
+spec:
+  selector:
+    app: spark
+    role: master
+  ports:
+    - port: 7077
+      targetPort: 7077
+      protocol: TCP
+      name: spark
+      nodePort: 31077
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: webui
+      nodePort: 31080
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-worker-1
+  namespace: spark-cluster
+spec:
+  selector:
+    app: spark
+    role: worker1
+  ports:
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+      name: webui
+      nodePort: 31081
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-worker-2
+  namespace: spark-cluster
+spec:
+  selector:
+    app: spark
+    role: worker2
+  ports:
+    - port: 8082
+      targetPort: 8082
+      protocol: TCP
+      name: webui
+      nodePort: 31082
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-master
+  namespace: spark-cluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark
+      role: master
+  template:
+    metadata:
+      labels:
+        app: spark
+        role: master
+    spec:
+      containers:
+        - name: spark-master
+          image: bitnami/spark:latest
+          env:
+            - name: SPARK_MODE
+              value: "master"
+          ports:
+            - containerPort: 7077
+            - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-worker-1
+  namespace: spark-cluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark
+      role: worker1
+  template:
+    metadata:
+      labels:
+        app: spark
+        role: worker1
+    spec:
+      containers:
+        - name: spark-worker
+          image: bitnami/spark:latest
+          env:
+            - name: SPARK_MODE
+              value: "worker"
+            - name: SPARK_MASTER_URL
+              value: "spark://spark-master.spark-cluster.svc.cluster.local:7077"
+            - name: SPARK_WORKER_MEMORY
+              value: "1G"
+          ports:
+            - containerPort: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-worker-2
+  namespace: spark-cluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark
+      role: worker2
+  template:
+    metadata:
+      labels:
+        app: spark
+        role: worker2
+    spec:
+      containers:
+        - name: spark-worker
+          image: bitnami/spark:latest
+          env:
+            - name: SPARK_MODE
+              value: "worker"
+            - name: SPARK_MASTER_URL
+              value: "spark://spark-master.spark-cluster.svc.cluster.local:7077"
+            - name: SPARK_WORKER_MEMORY
+              value: "1G"
+          ports:
+            - containerPort: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-engine
+  namespace: spark-cluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-engine
+  template:
+    metadata:
+      labels:
+        app: spark-engine
+    spec:
+      containers:
+        - name: spark-engine
+          image: jogodavidaspark:latest
+          imagePullPolicy: Never
+          tty: true
+          stdin: true
+          env:
+            - name: KAFKA_SERVER
+              value: kafka:9092
+            - name: SPARK_MASTER
+              value: spark://spark-master.spark-cluster.svc.cluster.local:7077

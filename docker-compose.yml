@@ -11,7 +11,7 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-
+      
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     hostname: kafka
@@ -44,63 +44,20 @@ services:
           echo 'Ainda esperando pelo Kafka...'
           sleep 2
         done;
-        echo 'Kafka pronto. Criando o tópico...'
-        # Cria o tópico --if-not-exists para não dar erro se já existir
+        echo 'Kafka pronto. Criando tópicos...'
         kafka-topics --create --if-not-exists --topic omp-mpi-topic --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1;
-        echo 'Tópico criado ou já existente. Serviço de setup concluído.';
+        kafka-topics --create --if-not-exists --topic spark-topic --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1;
+        echo 'Tópicos criados ou já existentes.';
       "
-
-  omp_mpi_engine:
+  pyspark:
     build:
-      context: ./omp-mpi-engine/src
+      context: ./spark-engine
       dockerfile: Dockerfile
-    container_name: mpi_app
-    depends_on:
-      kafka-setup:
-        condition: service_completed_successfully
-
-  game-of-life:
-    build:
-      context: .
-    container_name: game-of-life-spark
-    depends_on:
-      kafka-setup:
-        condition: service_completed_successfully
-    environment:
-      - BOOTSTRAP_SERVERS=kafka:9092
-      
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.2
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=false
-      - xpack.monitoring.collection.enabled=true
-    ports:
-      - 9200:9200
-      - 9300:9300
     volumes:
-      - esdata:/usr/share/elasticsearch/data
-    networks:
-      - elk
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.9.2
-    container_name: kibana
-    environment:
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
-      xpack.security.enabled: "false"
+      - ./spark-engine:/app
+    working_dir: /app
+    command: pyspark
     ports:
-      - 5601:5601
-    depends_on:
-      - elasticsearch
-    networks:
-      - elk
-
-volumes:
-  esdata:
-
-networks:
-  elk:
-    driver: bridge
+      - "4040:4040"
+    stdin_open: true
+    tty: true
