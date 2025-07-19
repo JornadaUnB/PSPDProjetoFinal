@@ -28,7 +28,7 @@ void send_metrics_to_elasticsearch(const char *json_data) {
     if (curl) {
         // A URL aponta para o serviço 'elasticsearch' do docker-compose
         // e para o índice 'jogo_da_vida_metrics'. Você pode mudar o nome do índice aqui se quiser.
-        curl_easy_setopt(curl, CURLOPT_URL, "http://elasticsearch:9200/jogo_da_vida_metrics/_doc");
+        curl_easy_setopt(curl, CURLOPT_URL, "http://elasticsearch:9200/omp-mpi-metrics/_doc");
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data);
 
         struct curl_slist *headers = NULL;
