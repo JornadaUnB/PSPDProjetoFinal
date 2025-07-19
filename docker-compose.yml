@@ -52,7 +52,7 @@ services:
 
   omp_mpi_engine:
     build:
-      context: ./omp-mpi-engine
+      context: ./omp-mpi-engine/src
       dockerfile: Dockerfile
     container_name: mpi_app
     depends_on:
