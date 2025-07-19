@@ -30,6 +30,8 @@ metadata:
 spec:
   selector:
     app: elasticsearch
+  type: NodePort
   ports:
     - port: 9200
       targetPort: 9200
+      nodePort: 30920  # <- porta externa (você pode ajustar)
