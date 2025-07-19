@@ -46,7 +46,7 @@ services:
         done;
         echo 'Kafka pronto. Criando o tópico...'
         # Cria o tópico --if-not-exists para não dar erro se já existir
-        kafka-topics --create --if-not-exists --topic jogo-da-vida-requests --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1;
+        kafka-topics --create --if-not-exists --topic omp-mpi-topic --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1;
         echo 'Tópico criado ou já existente. Serviço de setup concluído.';
       "
 

@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
         rd_kafka_poll_set_consumer(rk);
 
         rd_kafka_topic_partition_list_t *topics = rd_kafka_topic_partition_list_new(1);
-        rd_kafka_topic_partition_list_add(topics, "jogo-da-vida-requests", -1);
+        rd_kafka_topic_partition_list_add(topics, "omp-mpi-topic", -1);
         rd_kafka_subscribe(rk, topics);
         rd_kafka_topic_partition_list_destroy(topics);
 
