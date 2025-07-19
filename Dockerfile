@@ -1,7 +1,8 @@
-FROM openjdk:17-alpine
+FROM openjdk:17-slim
 
 # 🛠 Instala ferramentas essenciais
-RUN apk add --no-cache bash curl tar coreutils git unzip
+RUN apt update
+RUN apt install -y bash curl tar coreutils git unzip
 
 # 📦 Instala sbt
 RUN curl -sL https://github.com/sbt/sbt/releases/download/v1.9.4/sbt-1.9.4.tgz | tar -xz -C /opt \

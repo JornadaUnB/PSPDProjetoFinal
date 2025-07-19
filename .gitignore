@@ -1,0 +1,8 @@
+/kafka-3.5.0-src
+.class
+out
+export
+config-classes
+*/target/*
+inputs
+*/project/*

@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # Serviço do Zookeeper, uma dependência do Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka-setup
+    container_name: kafka-setup
+    depends_on:
+      - kafka
+    command: >
+      sh -c "
+        echo 'Esperando o Kafka ficar disponível...'
+        # Loop que tenta listar tópicos até que o Kafka responda.
+        until kafka-topics --list --bootstrap-server kafka:9092; do
+          echo 'Ainda esperando pelo Kafka...'
+          sleep 2
+        done;
+        echo 'Kafka pronto. Criando o tópico...'
+        # Cria o tópico --if-not-exists para não dar erro se já existir
+        kafka-topics --create --if-not-exists --topic jogo-da-vida-requests --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1;
+        echo 'Tópico criado ou já existente. Serviço de setup concluído.';
+      "
+
+  omp_mpi_engine:
+    build:
+      context: ./omp-mpi-engine
+      dockerfile: Dockerfile
+    container_name: mpi_app
+    depends_on:
+      kafka-setup:
+        condition: service_completed_successfully
+
+  game-of-life:
+    build:
+      context: .
+    container_name: game-of-life-spark
+    depends_on:
+      kafka-setup:
+        condition: service_completed_successfully
+    environment:
+      - BOOTSTRAP_SERVERS=kafka:9092
+      
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.monitoring.collection.enabled=true
+    ports:
+      - 9200:9200
+      - 9300:9300
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - elk
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.9.2
+    container_name: kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      xpack.security.enabled: "false"
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk
+
+volumes:
+  esdata:
+
+networks:
+  elk:
+    driver: bridge
