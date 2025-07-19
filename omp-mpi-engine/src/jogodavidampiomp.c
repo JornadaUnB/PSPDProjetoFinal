@@ -119,20 +119,16 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            // Mensagem recebida! Parse manual simples do JSON.
             const char* payload = (const char*)rkm->payload;
-            char* p_min_str = strstr(payload, "\"pow_min\"");
-            char* p_max_str = strstr(payload, "\"pow_max\"");
-
-            if (p_min_str && p_max_str) {
-                sscanf(p_min_str, "\"pow_min\":%d", &pow_min);
-                sscanf(p_max_str, "\"pow_max\":%d", &pow_max);
+            // sscanf retorna o número de itens lidos com sucesso.
+            // Esperamos ler 2 itens (pow_min e pow_max).
+            if (sscanf(payload, "%d,%d", &pow_min, &pow_max) == 2) {
                 printf("\n[Rank 0] Nova tarefa recebida. Processando intervalo de POW: %d a %d\n", pow_min, pow_max);
             } else {
-                fprintf(stderr, "[Rank 0] JSON inválido. Esperando por 'pow_min' e 'pow_max'. Payload: %s\n", payload);
+                fprintf(stderr, "[Rank 0] Formato inválido. Esperando por 'numero,numero'. Payload: %s\n", payload);
                 rd_kafka_message_destroy(rkm);
                 continue; // Volta a esperar por uma mensagem válida
-            }
+            }            
             rd_kafka_message_destroy(rkm);
 
             // Transmite o intervalo para os outros ranks e sai do loop de escuta para processar
