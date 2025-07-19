@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
                            tam, resultado_str, t1 - t0, t2 - t1, t3 - t2, t3 - t0);
 
                     json_t *metrics_json = json_pack("{s:i, s:i, s:s, s:f, s:f, s:f, s:f, s:s}",
-                                                     "tam", tam, "mpi_size", size, "resultado", resultado_str,
+                                                     "tam", tam, "resultado", resultado_str,
                                                      "tempo_init_s", t1 - t0, "tempo_comp_s", t2 - t1,
                                                      "tempo_verif_s", t3 - t2, "tempo_total_s", t3 - t0,
                                                      "engine", "MPI_OpenMP");

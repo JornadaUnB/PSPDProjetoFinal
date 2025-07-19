@@ -11,9 +11,7 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - elk
-
+      
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     hostname: kafka
@@ -31,8 +29,6 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
-    networks:
-      - elk
 
   kafka-setup:
     image: confluentinc/cp-kafka:7.5.0
@@ -53,74 +49,15 @@ services:
         kafka-topics --create --if-not-exists --topic spark-topic --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1;
         echo 'Tópicos criados ou já existentes.';
       "
-    networks:
-      - elk
-
-  omp_mpi_engine:
+  pyspark:
     build:
-      context: ./omp-mpi-engine/src
+      context: ./spark-engine
       dockerfile: Dockerfile
-    container_name: mpi_app
-    depends_on:
-      kafka-setup:
-        condition: service_completed_successfully
-      elasticsearch:
-        condition: service_healthy 
-    networks:
-      - elk
-
-  game-of-life:
-    build:
-      context: .
-    container_name: game-of-life-spark
-    depends_on:
-      kafka-setup:
-        condition: service_completed_successfully
-      elasticsearch:
-        condition: service_healthy
-    environment:
-      - BOOTSTRAP_SERVERS=kafka:9092
-    networks:
-      - elk
-      
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.2
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=false
-      - xpack.monitoring.collection.enabled=true
-    ports:
-      - 9200:9200
-      - 9300:9300
     volumes:
-      - esdata:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    networks:
-      - elk
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.9.2
-    container_name: kibana
-    environment:
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
-      xpack.security.enabled: "false"
+      - ./spark-engine:/app
+    working_dir: /app
+    command: pyspark
     ports:
-      - 5601:5601
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    networks:
-      - elk
-
-volumes:
-  esdata:
-
-networks:
-  elk:
-    driver: bridge
+      - "4040:4040"
+    stdin_open: true
+    tty: true
