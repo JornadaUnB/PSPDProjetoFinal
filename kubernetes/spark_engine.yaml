@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: spark-cluster
+  name: default
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: spark-master
-  namespace: spark-cluster
+  namespace: default
 spec:
   selector:
     app: spark
@@ -17,19 +17,19 @@ spec:
       targetPort: 7077
       protocol: TCP
       name: spark
-      nodePort: 31077
+      nodePort: 31078
     - port: 8080
       targetPort: 8080
       protocol: TCP
       name: webui
-      nodePort: 31080
+      nodePort: 31041
   type: NodePort
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: spark-worker-1
-  namespace: spark-cluster
+  namespace: default
 spec:
   selector:
     app: spark
@@ -39,14 +39,14 @@ spec:
       targetPort: 8081
       protocol: TCP
       name: webui
-      nodePort: 31081
+      nodePort: 31042
   type: NodePort
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: spark-worker-2
-  namespace: spark-cluster
+  namespace: default
 spec:
   selector:
     app: spark
@@ -56,14 +56,14 @@ spec:
       targetPort: 8082
       protocol: TCP
       name: webui
-      nodePort: 31082
+      nodePort: 31043
   type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: spark-master
-  namespace: spark-cluster
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -90,7 +90,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: spark-worker-1
-  namespace: spark-cluster
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -110,7 +110,7 @@ spec:
             - name: SPARK_MODE
               value: "worker"
             - name: SPARK_MASTER_URL
-              value: "spark://spark-master.spark-cluster.svc.cluster.local:7077"
+              value: "spark://spark-master.default.svc.cluster.local:7077"
             - name: SPARK_WORKER_MEMORY
               value: "1G"
           ports:
@@ -120,7 +120,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: spark-worker-2
-  namespace: spark-cluster
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -140,7 +140,7 @@ spec:
             - name: SPARK_MODE
               value: "worker"
             - name: SPARK_MASTER_URL
-              value: "spark://spark-master.spark-cluster.svc.cluster.local:7077"
+              value: "spark://spark-master.default.svc.cluster.local:7077"
             - name: SPARK_WORKER_MEMORY
               value: "1G"
           ports:
@@ -150,7 +150,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: spark-engine
-  namespace: spark-cluster
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -171,4 +171,4 @@ spec:
             - name: KAFKA_SERVER
               value: kafka:9092
             - name: SPARK_MASTER
-              value: spark://spark-master.spark-cluster.svc.cluster.local:7077
+              value: spark://spark-master.default.svc.cluster.local:7077
