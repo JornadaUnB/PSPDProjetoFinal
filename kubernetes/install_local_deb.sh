@@ -2,16 +2,16 @@
 
 set -e
 
-echo "[1/11] Atualizando pacotes..."
+echo "[1/8] Atualizando pacotes..."
 apt update -y
 
-echo "[2/11] Instalando dependências..."
+echo "[2/8] Instalando dependências..."
 apt install -y apt-transport-https ca-certificates curl gpg lsb-release software-properties-common
 
-echo "[3/11] Instalando containerd..."
+echo "[3/8] Instalando containerd..."
 apt install -y containerd
 
-echo "[4/11] Configurando containerd com suporte ao Kubernetes..."
+echo "[4/8] Configurando containerd com suporte ao Kubernetes..."
 mkdir -p /etc/containerd
 containerd config default > /etc/containerd/config.toml
 
@@ -22,7 +22,7 @@ sed -i '/\[plugins."io.containerd.grpc.v1.cri"\]/,/^\[/ s/^#\? *sandbox_image =.
 systemctl restart containerd
 systemctl enable containerd
 
-echo "[5/11] Carregando módulo br_netfilter e configurando sysctl para Flannel..."
+echo "[5/8] Carregando módulo br_netfilter e configurando sysctl para Flannel..."
 
 # Carrega o módulo br_netfilter agora
 modprobe br_netfilter
@@ -40,16 +40,16 @@ EOF
 # Aplica as configurações imediatamente
 sysctl --system
 
-echo "[6/11] Adicionando repositório do Kubernetes..."
+echo "[6/8] Adicionando repositório do Kubernetes..."
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/trusted.gpg.d/kubernetes.gpg
 echo "deb [signed-by=/etc/apt/trusted.gpg.d/kubernetes.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
 
 apt update -y
 
-echo "[7/11] Instalando kubelet, kubeadm e kubectl..."
+echo "[7/8] Instalando kubelet, kubeadm e kubectl..."
 apt install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
 
-echo "[8/11] Desativando swap (requisito do Kubernetes)..."
+echo "[8/8] Desativando swap (requisito do Kubernetes)..."
 swapoff -a
 sed -i '/ swap / s/^/#/' /etc/fstab
