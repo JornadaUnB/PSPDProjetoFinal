@@ -82,6 +82,12 @@ spec:
           env:
             - name: SPARK_MODE
               value: "master"
+            - name: SPARK_MASTER_PORT
+              value: "7077"
+            - name: SPARK_MASTER_WEBUI_PORT
+              value: "8080"
+            - name: SPARK_MASTER_HOST
+              value: "0.0.0.0"      
           ports:
             - containerPort: 7077
             - containerPort: 8080
@@ -110,7 +116,7 @@ spec:
             - name: SPARK_MODE
               value: "worker"
             - name: SPARK_MASTER_URL
-              value: "spark://spark-master.default.svc.cluster.local:7077"
+              value: "spark://spark-master:7077"
             - name: SPARK_WORKER_MEMORY
               value: "1G"
           ports:
@@ -140,7 +146,7 @@ spec:
             - name: SPARK_MODE
               value: "worker"
             - name: SPARK_MASTER_URL
-              value: "spark://spark-master.default.svc.cluster.local:7077"
+              value: "spark://spark-master:7077"
             - name: SPARK_WORKER_MEMORY
               value: "1G"
           ports:
@@ -163,7 +169,7 @@ spec:
     spec:
       containers:
         - name: spark-engine
-          image: jogodavidaspark:latest
+          image: spark-engine-spark-engine:latest
           imagePullPolicy: Never
           tty: true
           stdin: true
@@ -171,4 +177,4 @@ spec:
             - name: KAFKA_SERVER
               value: kafka:9092
             - name: SPARK_MASTER
-              value: spark://spark-master.default.svc.cluster.local:7077
+              value: spark://spark-master:7077

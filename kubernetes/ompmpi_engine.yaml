@@ -1,61 +1,30 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: hostfile-config
-data:
-  hostfile: |
-    ompmpiengine-0 slots=1
-    ompmpiengine-1 slots=1
-    ompmpiengine-2 slots=1
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ompmpiengine
-spec:
-  clusterIP: None
-  selector:
-    app: ompmpiengine
----
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
-  name: ompmpiengine
+  name: jogodavida-mpiomp
+  labels:
+    app: jogodavida
 spec:
-  serviceName: "ompmpiengine"
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
-      app: ompmpiengine
+      app: jogodavida
   template:
     metadata:
       labels:
-        app: ompmpiengine
+        app: jogodavida
     spec:
       containers:
-        - name: ompmpiengine
+        - name: jogodavida-container
           image: jogodavidampiomp:latest
-          imagePullPolicy: Never
-          command:
-            - /bin/bash
-            - -c
-            - |
-              if [[ "$(hostname)" == "ompmpiengine-0" ]]; then
-                echo "Sou o master"
-                until host ompmpiengine-1 && host ompmpiengine-2; do
-                  echo "Aguardando outros nós..."
-                  sleep 2
-                done
-                mpirun --hostfile /config/hostfile -np 3 --allow-run-as-root ./out
-              else
-                echo "Sou um worker, aguardando..."
-                sleep infinity
-              fi
-          volumeMounts:
-            - name: hostfile-volume
-              mountPath: /config
-      volumes:
-        - name: hostfile-volume
-          configMap:
-            name: hostfile-config
-
+          imagePullPolicy: Never  # usa a imagem local
+          resources:
+            limits:
+              cpu: "4"
+              memory: "1Gi"
+            requests:
+              cpu: "2"
+              memory: "512Mi"
+          tty: true
+          stdin: true
+      restartPolicy: Always
