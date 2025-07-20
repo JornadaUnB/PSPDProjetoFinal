@@ -6,7 +6,7 @@ import requests
 import json
 
 
-KAFKA_TOPIC = "spark-topico"
+KAFKA_TOPIC = "spark-topic"
 KAFKA_SERVER = "kafka:9092"
 GROUP_ID = "engine-spark-group"
 
